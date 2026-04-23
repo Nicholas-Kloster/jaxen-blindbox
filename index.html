@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>JAXEN'S BLIND BOX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #020509;
+      --card: #060d14;
+      --border: #0a2535;
+      --cyan: #00e5ff;
+      --cyan-dim: #005a70;
+      --cyan-glow: rgba(0,229,255,0.18);
+      --magenta: #ff2d78;
+      --purple: #9b5de5;
+      --cream: #b8e8f0;
+      --muted: #2a6070;
+      --rare: #9b5de5;
+      --secret: #00ff9f;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cream);
+      padding: 32px 16px;
+      overflow-x: hidden;
+      touch-action: pan-y;
+      position: relative;
+    }
+
+    /* ── MATRIX RAIN ── */
+    #rain { position: fixed; inset: 0; z-index: 0; opacity: 0.07; pointer-events: none; }
+
+    /* ── SCANLINES ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.18) 2px,
+        rgba(0,0,0,0.18) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* ── CORNER BRACKETS ── */
+    .corner { position: fixed; width: 40px; height: 40px; opacity: 0.4; z-index: 2; }
+    .corner::before, .corner::after { content: ''; position: absolute; background: var(--cyan); }
+    .corner::before { width: 100%; height: 2px; }
+    .corner::after  { width: 2px; height: 100%; }
+    .corner.tl { top: 12px; left: 12px; }
+    .corner.tr { top: 12px; right: 12px; transform: scaleX(-1); }
+    .corner.bl { bottom: 12px; left: 12px; transform: scaleY(-1); }
+    .corner.br { bottom: 12px; right: 12px; transform: scale(-1); }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+    }
+
+    /* ── HEADER ── */
+    .header { text-align: center; position: relative; }
+
+    .sys-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.25em;
+      margin-bottom: 6px;
+    }
+
+    .title {
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--cyan);
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 20px rgba(0,229,255,0.8), 0 0 40px rgba(0,229,255,0.3);
+      animation: glitch 8s infinite;
+      line-height: 1.2;
+    }
+
+    @keyframes glitch {
+      0%,94%,100% { text-shadow: 0 0 20px rgba(0,229,255,0.8), 0 0 40px rgba(0,229,255,0.3); transform: none; }
+      95%  { text-shadow: -2px 0 var(--magenta), 2px 0 var(--cyan); transform: translate(-1px, 0); }
+      96%  { text-shadow: 2px 0 var(--magenta), -2px 0 var(--cyan); transform: translate(2px, 0); }
+      97%  { text-shadow: 0 0 20px rgba(0,229,255,0.8); transform: none; }
+      98%  { text-shadow: -1px 0 var(--magenta), 1px 0 var(--cyan); transform: translate(-1px,1px); }
+      99%  { text-shadow: 0 0 20px rgba(0,229,255,0.8); transform: none; }
+    }
+
+    .subtitle {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      margin-top: 6px;
+    }
+
+    .subtitle span { color: var(--cyan); opacity: 0.7; }
+
+    /* ── BOX SCENE ── */
+    .box-scene {
+      position: relative;
+      width: 220px;
+      height: 260px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+
+    .box-wrapper {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* seal / top ornament instead of bow */
+    .seal-wrap {
+      position: absolute;
+      top: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      transition: opacity 0.3s ease;
+    }
+    .seal-wrap.hidden { opacity: 0; pointer-events: none; }
+
+    /* lid — dark panel with cyan trim */
+    .lid {
+      width: 188px;
+      height: 48px;
+      background: linear-gradient(160deg, #0a1e2e 0%, #061218 100%);
+      border-radius: 4px 4px 0 0;
+      border: 1px solid var(--cyan);
+      border-bottom: none;
+      transform-origin: 50% 0%;
+      transition: transform 0.65s cubic-bezier(0.34, 1.3, 0.64, 1);
+      box-shadow: 0 -2px 20px rgba(0,229,255,0.35), inset 0 0 20px rgba(0,229,255,0.05);
+      z-index: 4;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* circuit lines on lid */
+    .lid::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent 48%, rgba(0,229,255,0.2) 50%, transparent 52%),
+        linear-gradient(180deg, transparent 40%, rgba(0,229,255,0.1) 50%, transparent 60%);
+    }
+
+    .lid::after {
+      content: '◈';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      color: var(--cyan);
+      opacity: 0.6;
+      animation: spin 12s linear infinite;
+    }
+
+    @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+    /* body */
+    .body {
+      width: 180px;
+      height: 165px;
+      background: linear-gradient(160deg, #08141e 0%, #040c14 100%);
+      border-radius: 0 0 6px 6px;
+      border: 1px solid var(--cyan);
+      border-top: none;
+      position: relative;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.8), 0 0 30px rgba(0,229,255,0.15);
+      overflow: hidden;
+    }
+
+    /* circuit grid on body */
+    .body::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* vertical neon stripe */
+    .body::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 50%; transform: translateX(-50%);
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--cyan), transparent);
+      opacity: 0.25;
+    }
+
+    .box-shadow {
+      width: 160px;
+      height: 10px;
+      background: radial-gradient(ellipse, rgba(0,229,255,0.2) 0%, transparent 70%);
+      margin: 0 auto;
+    }
+
+    /* trinket float */
+    .trinket-float {
+      position: absolute;
+      bottom: 195px;
+      left: 50%;
+      transform: translateX(-50%) scale(0) translateY(20px);
+      opacity: 0;
+      transition: transform 0.55s cubic-bezier(0.34, 1.5, 0.64, 1), opacity 0.3s ease;
+      z-index: 10;
+    }
+    .trinket-float svg { width: 110px; height: 110px; display: block; }
+
+    /* swipe arrow */
+    .swipe-hint-arrow {
+      position: absolute;
+      bottom: 215px;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 6;
+      pointer-events: none;
+    }
+    .swipe-hint-arrow.show { opacity: 1; }
+
+    .lid.dragging { transition: none; }
+
+    /* ── STATES ── */
+    .box-scene.shaking .box-wrapper { animation: shake 0.45s ease-in-out; }
+    .box-scene.opened .lid { transform: rotateX(-120deg) translateY(-6px); }
+    .box-scene.opened .seal-wrap { opacity: 0; }
+    .box-scene.opened .trinket-float {
+      opacity: 1;
+      transform: translateX(-50%) scale(1) translateY(0);
+      animation: floatBob 3s ease-in-out 0.55s infinite;
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(-50%) rotate(0deg); }
+      12%  { transform: translateX(-50%) rotate(-5deg) translateX(-4px); }
+      25%  { transform: translateX(-50%) rotate( 5deg) translateX( 4px); }
+      37%  { transform: translateX(-50%) rotate(-4deg) translateX(-3px); }
+      50%  { transform: translateX(-50%) rotate( 4deg) translateX( 3px); }
+      62%  { transform: translateX(-50%) rotate(-2deg) translateX(-2px); }
+      75%  { transform: translateX(-50%) rotate( 2deg) translateX( 2px); }
+    }
+    @keyframes floatBob {
+      0%,100% { transform: translateX(-50%) scale(1) translateY(0); }
+      50%      { transform: translateX(-50%) scale(1) translateY(-9px); }
+    }
+
+    /* ── HINT ── */
+    .hint {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      animation: blinkHint 2.2s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hint .arr { display: inline-block; color: var(--cyan); animation: bounceUp 1.4s ease-in-out infinite; }
+    .hint.hide { visibility: hidden; }
+    @keyframes blinkHint { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @keyframes bounceUp  { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+    /* ── CARD ── */
+    .card {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px 18px;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+      position: relative;
+      overflow: hidden;
+    }
+    /* cyan corner accents on card */
+    .card::before, .card::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      border-color: var(--cyan);
+      border-style: solid;
+      opacity: 0.5;
+    }
+    .card::before { top: 6px; left: 6px; border-width: 1px 0 0 1px; }
+    .card::after  { bottom: 6px; right: 6px; border-width: 0 1px 1px 0; }
+    .card.show { opacity: 1; transform: translateY(0); pointer-events: all; }
+
+    .badge {
+      display: inline-block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      padding: 3px 12px;
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+    .badge.common  { background: rgba(42,96,112,0.2); color: var(--muted); border: 1px solid var(--cyan-dim); }
+    .badge.troll   { background: rgba(255,45,120,0.1); color: #ff6699; border: 1px solid rgba(255,45,120,0.3); }
+    .badge.rare    { background: rgba(155,93,229,0.12); color: var(--rare); border: 1px solid rgba(155,93,229,0.3); }
+    .badge.secret  { background: rgba(0,255,159,0.1); color: var(--secret); border: 1px solid rgba(0,255,159,0.3); }
+    .badge.special { background: rgba(255,45,120,0.15); color: var(--magenta); border: 1px solid rgba(255,45,120,0.4); }
+
+    .tname {
+      font-family: 'Orbitron', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--cyan);
+      margin-bottom: 8px;
+      text-shadow: 0 0 12px rgba(0,229,255,0.5);
+      line-height: 1.3;
+    }
+    .flavor { font-size: 11px; color: #4a8090; line-height: 1.7; font-style: italic; }
+
+    /* ── BUTTON ── */
+    .btn {
+      background: transparent;
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      padding: 11px 28px;
+      border-radius: 3px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s, box-shadow 0.2s;
+      text-transform: uppercase;
+    }
+    .btn.show { opacity: 1; pointer-events: all; transform: translateY(0); }
+    .btn:hover { background: rgba(0,229,255,0.06); border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,0.2); }
+    .btn:active { background: rgba(0,229,255,0.12); }
+
+    /* ── PARTICLES ── */
+    .p-layer { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+    .pt { position: absolute; border-radius: 50%; animation: pfly 1.1s ease-out forwards; }
+    @keyframes pfly {
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.2); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- corner brackets -->
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<!-- matrix rain -->
+<canvas id="rain"></canvas>
+
+<div class="p-layer" id="pLayer"></div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="sys-label">// SYSTEM: INITIALIZED · PULL_COUNT: <span id="pullCount">00</span></div>
+    <div class="title">JAXEN'S<br>BLIND BOX</div>
+    <div class="subtitle">ONE PULL · <span>INFINITE POSSIBILITIES</span></div>
+  </div>
+
+  <div class="box-scene" id="scene">
+    <div class="trinket-float" id="trinketFloat">
+      <svg id="trinketSvg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <!-- swipe up arrow -->
+    <div class="swipe-hint-arrow" id="swipeArrow">
+      <svg width="30" height="40" viewBox="0 0 30 40" fill="none">
+        <line x1="15" y1="36" x2="15" y2="6" stroke="rgba(0,229,255,0.7)" stroke-width="1.5"/>
+        <polyline points="6,16 15,4 24,16" stroke="rgba(0,229,255,0.7)" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+        <animateTransform attributeName="transform" type="translate" values="0 6;0 0;0 6" dur="1.2s" repeatCount="indefinite"/>
+      </svg>
+    </div>
+
+    <div class="box-wrapper" id="boxWrapper">
+
+      <!-- holographic seal instead of bow -->
+      <div class="seal-wrap" id="sealWrap">
+        <svg width="70" height="34" viewBox="0 0 70 34" fill="none">
+          <!-- seal hexagon -->
+          <polygon points="35,4 54,14 54,26 35,34 16,26 16,14" fill="rgba(0,229,255,0.05)" stroke="rgba(0,229,255,0.5)" stroke-width="1"/>
+          <!-- inner lines -->
+          <line x1="16" y1="14" x2="54" y2="26" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"/>
+          <line x1="16" y1="26" x2="54" y2="14" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"/>
+          <line x1="35" y1="4" x2="35" y2="34" stroke="rgba(0,229,255,0.2)" stroke-width="0.5"/>
+          <!-- center dot -->
+          <circle cx="35" cy="19" r="4" fill="rgba(0,229,255,0.15)" stroke="rgba(0,229,255,0.6)" stroke-width="1"/>
+          <circle cx="35" cy="19" r="1.5" fill="rgba(0,229,255,0.8)"/>
+          <!-- side lines -->
+          <line x1="0" y1="19" x2="14" y2="19" stroke="rgba(0,229,255,0.4)" stroke-width="1"/>
+          <line x1="56" y1="19" x2="70" y2="19" stroke="rgba(0,229,255,0.4)" stroke-width="1"/>
+        </svg>
+      </div>
+
+      <div class="lid" id="lid"></div>
+      <div class="body"></div>
+      <div class="box-shadow"></div>
+    </div>
+  </div>
+
+  <div class="hint" id="hint">
+    <span class="arr">↑</span>
+    <span>swipe up to open</span>
+    <span class="arr">↑</span>
+  </div>
+
+  <div class="card" id="card">
+    <div class="badge" id="badge">COMMON</div>
+    <div class="tname" id="tname">—</div>
+    <div class="flavor" id="flavor">—</div>
+  </div>
+
+  <button class="btn" id="btn" onclick="doReset()">[ PULL AGAIN ]</button>
+
+</div>
+
+<script>
+// ── MATRIX RAIN ──────────────────────────────────────────────────
+(function(){
+  const canvas = document.getElementById('rain');
+  const ctx = canvas.getContext('2d');
+  const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
+  let cols, drops;
+  function resize(){
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols  = Math.floor(canvas.width / 16);
+    drops = Array(cols).fill(1);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+  setInterval(()=>{
+    ctx.fillStyle = 'rgba(2,5,9,0.05)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#00e5ff';
+    ctx.font = '13px Share Tech Mono, monospace';
+    drops.forEach((y,i)=>{
+      const c = chars[Math.floor(Math.random()*chars.length)];
+      ctx.fillText(c, i*16, y*16);
+      if(y*16 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 60);
+})();
+
+// ── TRINKETS ─────────────────────────────────────────────────────
+const trinkets = [
+
+  // COMMONS
+  {
+    name: "Crystal Orb", rarity: "common",
+    flavor: "Warm to the touch. Doesn't predict the future, but it's pretty to look at.",
+    glow: "rgba(100,180,255,0.6)",
+    svg: `<defs><radialGradient id="g1" cx="36%" cy="30%" r="65%"><stop offset="0%" stop-color="#daf0ff"/><stop offset="55%" stop-color="#5aa8f0"/><stop offset="100%" stop-color="#1448a0"/></radialGradient></defs>
+    <circle cx="50" cy="56" r="34" fill="url(#g1)"/>
+    <ellipse cx="38" cy="42" rx="9" ry="5" fill="white" opacity="0.32" transform="rotate(-25 38 42)"/>
+    <circle cx="63" cy="36" r="3.5" fill="white" opacity="0.22"/>
+    <text x="50" y="63" text-anchor="middle" font-size="15" fill="white" opacity="0.65">✦</text>
+    <ellipse cx="50" cy="90" rx="24" ry="5" fill="rgba(0,0,0,0.18)"/>`
+  },
+  {
+    name: "Tiny Robot", rarity: "common",
+    flavor: "Beeps once. Then twice. Seems satisfied with itself.",
+    glow: "rgba(0,229,255,0.55)",
+    svg: `<rect x="29" y="29" width="42" height="36" rx="6" fill="#0a3a48"/>
+    <rect x="29" y="29" width="42" height="36" rx="6" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.7"/>
+    <rect x="37" y="18" width="26" height="15" rx="5" fill="#082830"/>
+    <rect x="37" y="18" width="26" height="15" rx="5" fill="none" stroke="#00e5ff" stroke-width="0.8" opacity="0.6"/>
+    <rect x="48" y="10" width="4" height="10" rx="2" fill="#00e5ff" opacity="0.8"/>
+    <circle cx="42" cy="44" r="6.5" fill="#020c10"/>
+    <circle cx="58" cy="44" r="6.5" fill="#020c10"/>
+    <circle cx="42" cy="44" r="3.5" fill="#00e5ff"/>
+    <circle cx="58" cy="44" r="3.5" fill="#00e5ff"/>
+    <circle cx="40.5" cy="42.5" r="1.2" fill="white" opacity="0.75"/>
+    <circle cx="56.5" cy="42.5" r="1.2" fill="white" opacity="0.75"/>
+    <rect x="38" y="55" width="24" height="3" rx="1" fill="#00e5ff" opacity="0.3"/>
+    <rect x="22" y="36" width="9" height="16" rx="4" fill="#082830" stroke="#00e5ff" stroke-width="0.8" opacity="0.7"/>
+    <rect x="69" y="36" width="9" height="16" rx="4" fill="#082830" stroke="#00e5ff" stroke-width="0.8" opacity="0.7"/>
+    <rect x="34" y="65" width="11" height="18" rx="5" fill="#082830" stroke="#00e5ff" stroke-width="0.8" opacity="0.6"/>
+    <rect x="55" y="65" width="11" height="18" rx="5" fill="#082830" stroke="#00e5ff" stroke-width="0.8" opacity="0.6"/>
+    <ellipse cx="50" cy="90" rx="24" ry="4" fill="rgba(0,229,255,0.1)"/>`
+  },
+  {
+    name: "Moon Mushroom", rarity: "common",
+    flavor: "Glows faintly at 2am. Smells like petrichor and something older.",
+    glow: "rgba(155,93,229,0.6)",
+    svg: `<defs><radialGradient id="g2" cx="40%" cy="32%" r="68%"><stop offset="0%" stop-color="#ddb8f8"/><stop offset="100%" stop-color="#6d28d9"/></radialGradient></defs>
+    <ellipse cx="50" cy="46" rx="35" ry="28" fill="url(#g2)"/>
+    <circle cx="37" cy="40" r="5.5" fill="white" opacity="0.28"/>
+    <circle cx="57" cy="33" r="4" fill="white" opacity="0.22"/>
+    <circle cx="44" cy="53" r="3" fill="white" opacity="0.18"/>
+    <circle cx="63" cy="46" r="3.5" fill="white" opacity="0.16"/>
+    <rect x="43" y="68" width="14" height="20" rx="5" fill="#c8b8e0"/>
+    <ellipse cx="50" cy="68" rx="10" ry="4" fill="#d8ccee"/>
+    <ellipse cx="50" cy="90" rx="22" ry="4" fill="rgba(0,0,0,0.18)"/>`
+  },
+
+  // ROLY POLY
+  {
+    name: "Roly Poly", rarity: "common",
+    flavor: "Curls into a perfect sphere when scared. An icon of emotional regulation.",
+    glow: "rgba(0,255,159,0.45)",
+    svg: `<ellipse cx="50" cy="60" rx="32" ry="21" fill="#0a2a1a"/>
+    <ellipse cx="50" cy="60" rx="32" ry="21" fill="none" stroke="#00ff9f" stroke-width="0.8" opacity="0.5"/>
+    <ellipse cx="50" cy="56" rx="30" ry="19" fill="#0d3820"/>
+    <path d="M22 57 Q50 50 78 57" stroke="#00ff9f" stroke-width="1" fill="none" opacity="0.4"/>
+    <path d="M23 63 Q50 56 77 63" stroke="#00ff9f" stroke-width="1" fill="none" opacity="0.4"/>
+    <path d="M26 69 Q50 62 74 69" stroke="#00ff9f" stroke-width="0.8" fill="none" opacity="0.3"/>
+    <circle cx="50" cy="42" r="15" fill="#0f4028"/>
+    <circle cx="50" cy="42" r="14" fill="none" stroke="#00ff9f" stroke-width="0.8" opacity="0.5"/>
+    <circle cx="44" cy="40" r="3.5" fill="#020c08"/>
+    <circle cx="56" cy="40" r="3.5" fill="#020c08"/>
+    <circle cx="44" cy="40" r="2" fill="#00ff9f"/>
+    <circle cx="56" cy="40" r="2" fill="#00ff9f"/>
+    <circle cx="43" cy="39" r="1" fill="white" opacity="0.7"/>
+    <circle cx="55" cy="39" r="1" fill="white" opacity="0.7"/>
+    <path d="M46 30 Q40 20 36 16" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <path d="M54 30 Q60 20 64 16" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="36" cy="16" r="2" fill="#00ff9f" opacity="0.8"/>
+    <circle cx="64" cy="16" r="2" fill="#00ff9f" opacity="0.8"/>
+    <path d="M28 57 Q20 53 15 57" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <path d="M28 63 Q20 61 14 64" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <path d="M72 57 Q80 53 85 57" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <path d="M72 63 Q80 61 86 64" stroke="#00ff9f" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.5"/>
+    <ellipse cx="50" cy="90" rx="24" ry="4" fill="rgba(0,255,159,0.08)"/>`
+  },
+
+  // PICKLE TROLL
+  {
+    name: "The Pickle", rarity: "troll",
+    flavor: "You got a pickle. We're sorry. We're not sorry.",
+    glow: "rgba(80,200,40,0.6)",
+    svg: `<defs><radialGradient id="pg" cx="35%" cy="28%" r="70%"><stop offset="0%" stop-color="#b8e870"/><stop offset="55%" stop-color="#5aaa20"/><stop offset="100%" stop-color="#2a5a08"/></radialGradient></defs>
+    <ellipse cx="50" cy="50" rx="17" ry="37" fill="url(#pg)"/>
+    <circle cx="43" cy="30" r="3.2" fill="#3a8010" opacity="0.65"/>
+    <circle cx="58" cy="40" r="2.6" fill="#3a8010" opacity="0.65"/>
+    <circle cx="42" cy="52" r="3.5" fill="#3a8010" opacity="0.65"/>
+    <circle cx="59" cy="60" r="2.8" fill="#3a8010" opacity="0.65"/>
+    <circle cx="43" cy="68" r="3" fill="#3a8010" opacity="0.65"/>
+    <ellipse cx="44" cy="34" rx="4" ry="7" fill="rgba(210,255,160,0.22)" transform="rotate(-12 44 34)"/>
+    <ellipse cx="50" cy="14" rx="8" ry="5" fill="#3a8010"/>
+    <ellipse cx="50" cy="12" rx="6" ry="3.5" fill="#4a9820"/>
+    <ellipse cx="50" cy="86" rx="8" ry="4.5" fill="#2a6008"/>`
+  },
+
+  // FOX
+  {
+    name: "Fox", rarity: "common",
+    flavor: "Clever. Warm. Probably up to something.",
+    glow: "rgba(255,120,40,0.6)",
+    svg: `<!-- body -->
+    <ellipse cx="50" cy="68" rx="22" ry="18" fill="#c85820"/>
+    <!-- chest -->
+    <ellipse cx="50" cy="72" rx="12" ry="10" fill="#f0d0a0"/>
+    <!-- head -->
+    <circle cx="50" cy="44" r="20" fill="#d86a28"/>
+    <!-- face white -->
+    <ellipse cx="50" cy="52" rx="12" ry="10" fill="#f0d0a0"/>
+    <!-- ears -->
+    <polygon points="34,28 28,8 44,26" fill="#d86a28"/>
+    <polygon points="66,28 72,8 56,26" fill="#d86a28"/>
+    <polygon points="35,27 30,12 43,26" fill="#ff9060" opacity="0.7"/>
+    <polygon points="65,27 70,12 57,26" fill="#ff9060" opacity="0.7"/>
+    <!-- eyes -->
+    <circle cx="43" cy="44" r="5" fill="#1a0c04"/>
+    <circle cx="57" cy="44" r="5" fill="#1a0c04"/>
+    <circle cx="43" cy="44" r="3" fill="#a05010"/>
+    <circle cx="57" cy="44" r="3" fill="#a05010"/>
+    <circle cx="41.5" cy="42.5" r="1.5" fill="white" opacity="0.8"/>
+    <circle cx="55.5" cy="42.5" r="1.5" fill="white" opacity="0.8"/>
+    <!-- nose -->
+    <ellipse cx="50" cy="54" rx="4" ry="2.5" fill="#2a0c04"/>
+    <!-- mouth -->
+    <path d="M47 57 Q50 60 53 57" stroke="#8a3a10" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <!-- tail -->
+    <ellipse cx="26" cy="78" rx="14" ry="10" fill="#d86a28" transform="rotate(-30 26 78)"/>
+    <ellipse cx="20" cy="74" rx="7" ry="5" fill="#f0d0a0" transform="rotate(-30 20 74)"/>
+    <!-- paws -->
+    <ellipse cx="38" cy="86" rx="8" ry="5" fill="#c85820"/>
+    <ellipse cx="62" cy="86" rx="8" ry="5" fill="#c85820"/>
+    <ellipse cx="50" cy="94" rx="26" ry="4" fill="rgba(0,0,0,0.18)"/>`
+  },
+
+  // RABBIT
+  {
+    name: "Rabbit", rarity: "common",
+    flavor: "Soft. Twitchy. Knows something you don't.",
+    glow: "rgba(200,220,255,0.5)",
+    svg: `<!-- ears -->
+    <ellipse cx="38" cy="22" rx="8" ry="20" fill="#d0d8e8"/>
+    <ellipse cx="62" cy="22" rx="8" ry="20" fill="#d0d8e8"/>
+    <ellipse cx="38" cy="22" rx="4.5" ry="16" fill="#e8a0b8" opacity="0.7"/>
+    <ellipse cx="62" cy="22" rx="4.5" ry="16" fill="#e8a0b8" opacity="0.7"/>
+    <!-- body -->
+    <ellipse cx="50" cy="70" rx="24" ry="22" fill="#d8e0f0"/>
+    <!-- head -->
+    <circle cx="50" cy="46" r="20" fill="#e0e8f8"/>
+    <!-- cheeks -->
+    <circle cx="38" cy="52" r="6" fill="#f0c0d0" opacity="0.4"/>
+    <circle cx="62" cy="52" r="6" fill="#f0c0d0" opacity="0.4"/>
+    <!-- eyes — cyan glow fits GITS style -->
+    <circle cx="43" cy="44" r="5.5" fill="#0a1a2a"/>
+    <circle cx="57" cy="44" r="5.5" fill="#0a1a2a"/>
+    <circle cx="43" cy="44" r="3" fill="#00c8e8"/>
+    <circle cx="57" cy="44" r="3" fill="#00c8e8"/>
+    <circle cx="41.5" cy="42.5" r="1.5" fill="white" opacity="0.8"/>
+    <circle cx="55.5" cy="42.5" r="1.5" fill="white" opacity="0.8"/>
+    <!-- nose -->
+    <ellipse cx="50" cy="53" rx="3" ry="2" fill="#e890a8"/>
+    <!-- mouth -->
+    <path d="M47 56 Q50 59 53 56" stroke="#c06070" stroke-width="1" fill="none" stroke-linecap="round"/>
+    <line x1="50" y1="53" x2="50" y2="56" stroke="#c06070" stroke-width="1"/>
+    <!-- tail -->
+    <circle cx="50" cy="90" r="7" fill="#e8eef8"/>
+    <!-- paws -->
+    <ellipse cx="37" cy="88" rx="9" ry="5" fill="#d0d8ee"/>
+    <ellipse cx="63" cy="88" rx="9" ry="5" fill="#d0d8ee"/>
+    <ellipse cx="50" cy="96" rx="26" ry="3.5" fill="rgba(0,0,0,0.15)"/>`
+  },
+
+  // LO-FI CASSETTE
+  {
+    name: "Lo-Fi Cassette", rarity: "rare",
+    flavor: "Side B. Always Side B. Someone made this for someone.",
+    glow: "rgba(155,93,229,0.6)",
+    svg: `<rect x="8" y="26" width="84" height="54" rx="5" fill="#0a0a1e"/>
+    <rect x="8" y="26" width="84" height="54" rx="5" fill="none" stroke="#9b5de5" stroke-width="1"/>
+    <rect x="12" y="30" width="76" height="46" rx="4" fill="#080818"/>
+    <rect x="18" y="34" width="64" height="34" rx="3" fill="#040410"/>
+    <circle cx="36" cy="51" r="12" fill="#0d0d24"/>
+    <circle cx="64" cy="51" r="12" fill="#0d0d24"/>
+    <circle cx="36" cy="51" r="7" fill="rgba(155,93,229,0.15)"/>
+    <circle cx="64" cy="51" r="7" fill="rgba(155,93,229,0.15)"/>
+    <circle cx="36" cy="51" r="3.5" fill="#02020a"/>
+    <circle cx="64" cy="51" r="3.5" fill="#02020a"/>
+    <rect x="43" y="47" width="14" height="8" rx="2" fill="rgba(155,93,229,0.2)" stroke="#9b5de5" stroke-width="0.5"/>
+    <text x="50" y="82" text-anchor="middle" font-family="monospace" font-size="6.5" fill="#9b5de5" opacity="0.8">SIDE B</text>`
+  },
+
+  // SPIDER TROLL
+  {
+    name: "Sir Legs-a-Lot", rarity: "troll",
+    flavor: "Eight legs. Zero remorse. He lives here now.",
+    glow: "rgba(255,45,120,0.45)",
+    svg: `<line x1="50" y1="5" x2="50" y2="40" stroke="rgba(0,229,255,0.2)" stroke-width="0.8"/>
+    <line x1="20" y1="14" x2="50" y2="40" stroke="rgba(0,229,255,0.2)" stroke-width="0.8"/>
+    <line x1="80" y1="14" x2="50" y2="40" stroke="rgba(0,229,255,0.2)" stroke-width="0.8"/>
+    <ellipse cx="50" cy="68" rx="18" ry="22" fill="#1e0808"/>
+    <ellipse cx="50" cy="66" rx="16" ry="20" fill="#2a0e0e"/>
+    <ellipse cx="50" cy="62" rx="7" ry="9" fill="#ff2d78" opacity="0.45"/>
+    <circle cx="50" cy="44" r="12" fill="#2a0e0e"/>
+    <circle cx="50" cy="43" r="10" fill="#380e0e"/>
+    <circle cx="44" cy="39" r="2.5" fill="#ff2d78"/><circle cx="44" cy="39" r="1" fill="white" opacity="0.45"/>
+    <circle cx="50" cy="38" r="2.5" fill="#ff2d78"/><circle cx="50" cy="38" r="1" fill="white" opacity="0.45"/>
+    <circle cx="56" cy="39" r="2.5" fill="#ff2d78"/><circle cx="56" cy="39" r="1" fill="white" opacity="0.45"/>
+    <circle cx="46" cy="44" r="2" fill="#cc1050"/>
+    <circle cx="54" cy="44" r="2" fill="#cc1050"/>
+    <path d="M40 44 Q28 36 18 28" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M40 47 Q26 43 13 41" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M40 51 Q27 54 15 57" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M40 56 Q29 62 21 70" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M60 44 Q72 36 82 28" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M60 47 Q74 43 87 41" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M60 51 Q73 54 85 57" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M60 56 Q71 62 79 70" stroke="#380e0e" stroke-width="2.5" fill="none" stroke-linecap="round"/>`
+  },
+
+  // LUNA
+  {
+    name: "Luna", rarity: "rare",
+    flavor: "Rare drop. She was sitting on the couch looking judgmental. As usual.",
+    glow: "rgba(0,229,255,0.5)",
+    svg: `<ellipse cx="50" cy="74" rx="26" ry="18" fill="#1c1008"/>
+    <ellipse cx="50" cy="78" rx="13" ry="9" fill="#b0681e" opacity="0.7"/>
+    <ellipse cx="50" cy="80" rx="9" ry="6" fill="#cc7c2a" opacity="0.5"/>
+    <circle cx="50" cy="46" r="23" fill="#1c1008"/>
+    <ellipse cx="40" cy="50" rx="13" ry="11" fill="#884010" opacity="0.6" transform="rotate(-12 40 50)"/>
+    <ellipse cx="56" cy="41" rx="10" ry="9" fill="#b06018" opacity="0.45"/>
+    <ellipse cx="43" cy="37" rx="8" ry="5.5" fill="#964c14" opacity="0.4"/>
+    <polygon points="32,32 25,11 43,28" fill="#1c1008"/>
+    <polygon points="68,32 75,11 57,28" fill="#1c1008"/>
+    <polygon points="34,30 28,15 43,28" fill="#3a1810" opacity="0.65"/>
+    <polygon points="66,30 72,15 57,28" fill="#3a1810" opacity="0.65"/>
+    <circle cx="41" cy="48" r="7.5" fill="#182808"/>
+    <circle cx="59" cy="48" r="7.5" fill="#182808"/>
+    <ellipse cx="41" cy="48" rx="4.5" ry="6" fill="#00c8e8"/>
+    <ellipse cx="59" cy="48" rx="4.5" ry="6" fill="#00c8e8"/>
+    <ellipse cx="41" cy="48" rx="2.8" ry="4.2" fill="#060c02"/>
+    <ellipse cx="59" cy="48" rx="2.8" ry="4.2" fill="#060c02"/>
+    <circle cx="40" cy="46" r="1.5" fill="white" opacity="0.7"/>
+    <circle cx="58" cy="46" r="1.5" fill="white" opacity="0.7"/>
+    <ellipse cx="50" cy="57" rx="3.5" ry="2.5" fill="#d08080" opacity="0.8"/>
+    <path d="M47 60 Q50 63 53 60" stroke="#8a4848" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <line x1="33" y1="55" x2="46" y2="57" stroke="rgba(240,220,180,0.45)" stroke-width="0.8"/>
+    <line x1="31" y1="58" x2="46" y2="58" stroke="rgba(240,220,180,0.45)" stroke-width="0.8"/>
+    <line x1="54" y1="57" x2="67" y2="55" stroke="rgba(240,220,180,0.45)" stroke-width="0.8"/>
+    <line x1="54" y1="58" x2="69" y2="58" stroke="rgba(240,220,180,0.45)" stroke-width="0.8"/>
+    <ellipse cx="38" cy="88" rx="9" ry="5" fill="#1c1008"/>
+    <ellipse cx="62" cy="88" rx="9" ry="5" fill="#1c1008"/>
+    <ellipse cx="38" cy="88" rx="6" ry="3.5" fill="#7a3a10" opacity="0.45"/>
+    <ellipse cx="50" cy="94" rx="28" ry="4" fill="rgba(0,229,255,0.08)"/>`
+  },
+
+  // MANDATORY NAKED SESSION 💕
+  {
+    name: "Mandatory\nNaked Session", rarity: "special",
+    flavor: "Non-negotiable. Terms and conditions apply. No refunds.",
+    glow: "rgba(255,45,120,0.8)",
+    svg: `<defs>
+      <radialGradient id="hg" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ff6699" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="#ff0055" stop-opacity="0.05"/>
+      </radialGradient>
+    </defs>
+    <circle cx="50" cy="50" r="46" fill="url(#hg)"/>
+    <!-- big center heart -->
+    <path d="M50 65 C50 65 22 48 22 34 C22 24 30 18 38 20 C43 22 47 26 50 30 C53 26 57 22 62 20 C70 18 78 24 78 34 C78 48 50 65 50 65Z" fill="#ff2d78" opacity="0.9"/>
+    <!-- smaller hearts scattered -->
+    <path d="M20 25 C20 25 10 18 10 12 C10 8 13 6 16 7 C18 8 19 10 20 11 C21 10 22 8 24 7 C27 6 30 8 30 12 C30 18 20 25 20 25Z" fill="#ff6699" opacity="0.7"/>
+    <path d="M80 22 C80 22 72 16 72 11 C72 7.5 74.5 5.5 77 6.5 C78.5 7 79.5 8.8 80 10 C80.5 8.8 81.5 7 83 6.5 C85.5 5.5 88 7.5 88 11 C88 16 80 22 80 22Z" fill="#ff6699" opacity="0.6"/>
+    <path d="M15 72 C15 72 8 67 8 62 C8 59 10 57 12 58 C13.5 58.5 14.5 60 15 61 C15.5 60 16.5 58.5 18 58 C20 57 22 59 22 62 C22 67 15 72 15 72Z" fill="#ff4488" opacity="0.65"/>
+    <path d="M85 68 C85 68 78 63 78 58 C78 55 80 53 82 54 C83.5 54.5 84.5 56 85 57 C85.5 56 86.5 54.5 88 54 C90 53 92 55 92 58 C92 63 85 68 85 68Z" fill="#ff4488" opacity="0.6"/>
+    <path d="M32 18 C32 18 26 13 26 9 C26 6.5 28 5 30 5.8 C31 6.2 31.5 7.5 32 8.5 C32.5 7.5 33 6.2 34 5.8 C36 5 38 6.5 38 9 C38 13 32 18 32 18Z" fill="#ff88aa" opacity="0.55"/>
+    <path d="M68 15 C68 15 63 11 63 7.5 C63 5.3 64.8 4 66.5 4.7 C67.4 5 67.8 6.2 68 7 C68.2 6.2 68.6 5 69.5 4.7 C71.2 4 73 5.3 73 7.5 C73 11 68 15 68 15Z" fill="#ff88aa" opacity="0.55"/>
+    <!-- tiny floating hearts -->
+    <text x="26" y="88" font-size="10" fill="#ff2d78" opacity="0.7">♥</text>
+    <text x="66" y="85" font-size="8" fill="#ff6699" opacity="0.6">♥</text>
+    <text x="48" y="92" font-size="9" fill="#ff4488" opacity="0.65">♥</text>
+    <text x="12" y="48" font-size="8" fill="#ff6699" opacity="0.5">♥</text>
+    <text x="80" y="44" font-size="9" fill="#ff4488" opacity="0.5">♥</text>`
+  },
+
+  // SECRET RARE
+  {
+    name: "debug.exe", rarity: "secret",
+    flavor: "A secret rare. One in forever. Obviously.",
+    glow: "rgba(0,229,255,0.7)",
+    svg: `<rect x="4" y="8" width="92" height="76" rx="5" fill="#020c14"/>
+    <rect x="4" y="8" width="92" height="76" rx="5" fill="none" stroke="#00e5ff" stroke-width="1"/>
+    <rect x="4" y="8" width="92" height="18" rx="5" fill="#041824"/>
+    <rect x="4" y="18" width="92" height="8" fill="#041824"/>
+    <circle cx="16" cy="17" r="3.5" fill="#ff5f57"/>
+    <circle cx="27" cy="17" r="3.5" fill="#ffbd2e"/>
+    <circle cx="38" cy="17" r="3.5" fill="#28ca41"/>
+    <text x="11" y="40" font-size="6.2" fill="#00e5ff" font-family="monospace" opacity="0.5">mental_notes = []</text>
+    <text x="11" y="52" font-size="6.2" fill="#00e5ff" font-family="monospace">mental_notes.append(</text>
+    <text x="11" y="63" font-size="6.2" fill="#ff2d78" font-family="monospace">  "Get Jaxen Trinket"</text>
+    <text x="11" y="74" font-size="6.2" fill="#00e5ff" font-family="monospace">)  <tspan fill="#2a5060"># returns</tspan> <tspan fill="#00ff9f">True</tspan></text>
+    <rect x="82" y="68" width="5" height="10" rx="1" fill="#00e5ff"><animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/></rect>`
+  }
+];
+
+// ── RARITY PICKER ────────────────────────────────────────────────
+function pickTrinket() {
+  const r = Math.random();
+  if (r < 0.03) return trinkets[12];                                    // secret: 3%
+  if (r < 0.09) return trinkets[11];                                    // naked session: 6%
+  if (r < 0.16) return trinkets[10];                                    // Luna: 7%
+  if (r < 0.22) return trinkets[8];                                     // spider troll: 6%
+  if (r < 0.32) return trinkets[4];                                     // pickle troll: 10%
+  if (r < 0.44) return trinkets[6 + (Math.random() < 0.5 ? 0 : 1)];   // rare (cassette/telescope): 12%
+  // commons: Crystal, Robot, Mushroom, RolyPoly, Fox, Rabbit
+  const commons = [0,1,2,3,5,7]; // indices of common trinkets (skip telescope which is at 6)
+  // wait — let me re-index. Let me just use the common ones by array reference
+  return [trinkets[0],trinkets[1],trinkets[2],trinkets[3],trinkets[5],trinkets[9]][Math.floor(Math.random()*6)];
+}
+
+// ── PULL COUNTER ─────────────────────────────────────────────────
+let pullCount = 0;
+function updateCounter() {
+  pullCount++;
+  document.getElementById('pullCount').textContent = String(pullCount).padStart(2,'0');
+}
+
+// ── SWIPE LOGIC ──────────────────────────────────────────────────
+let phase = 'idle';
+let picked = null;
+let touchStartY = 0, touchStartX = 0, touchStartTime = 0;
+let isDraggingLid = false;
+
+const scene = document.getElementById('scene');
+const lid   = document.getElementById('lid');
+const hint  = document.getElementById('hint');
+const swipeArrow = document.getElementById('swipeArrow');
+
+scene.addEventListener('touchstart', (e) => {
+  if (phase === 'opened') return;
+  touchStartY = e.touches[0].clientY;
+  touchStartX = e.touches[0].clientX;
+  touchStartTime = Date.now();
+  isDraggingLid = true;
+  lid.classList.add('dragging');
+}, { passive: true });
+
+scene.addEventListener('touchmove', (e) => {
+  if (!isDraggingLid || phase === 'opened') return;
+  e.preventDefault();
+  const dy = touchStartY - e.touches[0].clientY;
+  const dx = Math.abs(touchStartX - e.touches[0].clientX);
+  if (dy > 0 && dy > dx) {
+    const progress = Math.min(dy / 120, 1);
+    lid.style.transform = `rotateX(${progress * -120}deg)`;
+  }
+}, { passive: false });
+
+scene.addEventListener('touchend', (e) => {
+  if (phase === 'opened') return;
+  isDraggingLid = false;
+  lid.classList.remove('dragging');
+  const dy = touchStartY - e.changedTouches[0].clientY;
+  const dx = Math.abs(touchStartX - e.changedTouches[0].clientX);
+  const elapsed = Date.now() - touchStartTime;
+  const velocity = dy / elapsed;
+  if ((dy > 60 && dy > dx) || (velocity > 0.5 && dy > 20 && dy > dx)) {
+    doOpen();
+  } else {
+    lid.style.transform = '';
+    if (dy < 10 && dx < 10) doShake();
+  }
+}, { passive: true });
+
+// desktop click fallback
+scene.addEventListener('click', () => { if (phase === 'idle') doShake(); });
+
+function doShake() {
+  if (phase !== 'idle') return;
+  picked = pickTrinket();
+  scene.classList.add('shaking');
+  hint.classList.add('hide');
+  swipeArrow.classList.add('show');
+  setTimeout(() => {
+    scene.classList.remove('shaking');
+    hint.innerHTML = '<span class="arr">↑</span><span>now swipe up</span><span class="arr">↑</span>';
+    hint.classList.remove('hide');
+  }, 500);
+}
+
+function doOpen() {
+  if (phase === 'opened') return;
+  phase = 'opened';
+  updateCounter();
+  lid.style.transform = '';
+  scene.classList.add('opened');
+  swipeArrow.classList.remove('show');
+  hint.classList.add('hide');
+
+  const svg = document.getElementById('trinketSvg');
+  svg.innerHTML = picked.svg;
+  svg.style.filter = `drop-shadow(0 0 20px ${picked.glow})`;
+
+  setTimeout(spawnParticles, 180);
+
+  setTimeout(() => {
+    const badge = document.getElementById('badge');
+    badge.className = 'badge ' + picked.rarity;
+    const labels = {
+      common:  '// COMMON',
+      rare:    '// RARE_CLASS',
+      troll:   '⚠ BREACH.EXE',
+      secret:  '█ CLASSIFIED █',
+      special: '♥ SPECIAL UNLOCK ♥'
+    };
+    badge.textContent = labels[picked.rarity];
+
+    // handle multiline name
+    const nameEl = document.getElementById('tname');
+    nameEl.innerHTML = picked.name.replace('\n', '<br>');
+    document.getElementById('flavor').textContent = picked.flavor;
+    document.getElementById('card').classList.add('show');
+    document.getElementById('btn').classList.add('show');
+  }, 600);
+}
+
+function doReset() {
+  phase = 'idle'; picked = null;
+  scene.classList.remove('opened', 'shaking');
+  lid.style.transform = '';
+  document.getElementById('trinketSvg').innerHTML = '';
+  document.getElementById('card').classList.remove('show');
+  document.getElementById('btn').classList.remove('show');
+  swipeArrow.classList.remove('show');
+  hint.innerHTML = '<span class="arr">↑</span><span>swipe up to open</span><span class="arr">↑</span>';
+  hint.classList.remove('hide');
+  document.getElementById('sealWrap').classList.remove('hidden');
+}
+
+// ── PARTICLES ────────────────────────────────────────────────────
+function spawnParticles() {
+  const colors = ['#00e5ff','#ff2d78','#9b5de5','#00ff9f','#b8e8f0','#ffffff'];
+  const s = document.getElementById('scene').getBoundingClientRect();
+  const cx = s.left + s.width / 2, cy = s.top + s.height * 0.35;
+  const layer = document.getElementById('pLayer');
+  for (let i = 0; i < 32; i++) {
+    const p = document.createElement('div');
+    p.className = 'pt';
+    const angle = (i / 32) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+    const dist = 80 + Math.random() * 130, size = 3 + Math.random() * 8;
+    p.style.cssText = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};--tx:${Math.cos(angle)*dist}px;--ty:${Math.sin(angle)*dist}px;animation-delay:${Math.random()*0.15}s;box-shadow:0 0 6px currentColor;`;
+    layer.appendChild(p);
+    setTimeout(() => p.remove(), 1400);
+  }
+}
+</script>
+</body>
+</html>
