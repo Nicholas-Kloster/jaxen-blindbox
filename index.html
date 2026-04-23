@@ -880,6 +880,7 @@ function doShake() {
 
 function doOpen() {
   if (phase === 'opened') return;
+  if (!picked) picked = pickTrinket();
   phase = 'opened';
   updateCounter();
   lid.style.transform = '';
